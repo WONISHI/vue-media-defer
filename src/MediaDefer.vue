@@ -72,7 +72,7 @@ import {
 } from "vue-demi";
 
 export default defineComponent({
-  name: "DemandLoader",
+  name: "MediaDefer",
   props: {
     src: { type: String, required: true },
     type: {

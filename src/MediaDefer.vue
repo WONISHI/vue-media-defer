@@ -1,8 +1,8 @@
 <template>
-  <div class="lazy-media-contain">
+  <div class="media-defer-contain">
     <div
       ref="wrapperRef"
-      class="lazy-media-wrapper"
+      class="media-defer-wrapper"
       :class="containerClass"
       :style="containerStyle"
     >
@@ -296,12 +296,12 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.lazy-media-contain {
+.media-defer-contain {
   overflow: hidden;
   width: 100%;
   height: 100%;
 }
-.lazy-media-wrapper {
+.media-defer-wrapper {
   position: relative;
   overflow: hidden;
   width: 100%;

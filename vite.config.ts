@@ -10,6 +10,13 @@ export default defineConfig({
       entryRoot: '.', 
       outDir: 'dist',
       include: ['src/**/*.vue', 'src/**/*.ts', 'index.ts'],
+      beforeWriteFile: (filePath, content) => {
+        const _content = content.replace(/vue-demi/g, 'vue')
+        return {
+          filePath,
+          content: _content
+        }
+      }
     }),
   ],
   build: {
@@ -19,10 +26,12 @@ export default defineConfig({
       fileName: (format) => `vue-media-defer.${format}.js`,
     },
     rollupOptions: {
-      external: ['vue', 'vue-demi'],
+      external: ['vue', 'vue-demi', '@vue/composition-api'], 
       output: {
         globals: {
-          vue: 'Vue'
+          vue: 'Vue',
+          'vue-demi': 'VueDemi',
+          '@vue/composition-api': 'VueCompositionAPI'
         },
       },
     },

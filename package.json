@@ -1,0 +1,24 @@
+{
+  "name": "@wonshi/vue-media-defer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "node node_modules/vue-demi/bin/vue-demi-fix.js"
+  },
+  "dependencies": {
+    "vue-demi": "^0.14.0"
+  },
+  "peerDependencies": {
+    "@vue/composition-api": "^1.0.0-rc.1",
+    "vue": "^2.0.0 || >=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@vue/composition-api": {
+      "optional": true
+    }
+  },
+  "files": [
+    "index.js",
+    "src"
+  ]
+}

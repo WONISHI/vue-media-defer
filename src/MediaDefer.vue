@@ -7,26 +7,20 @@
       :style="containerStyle"
     >
       <template v-if="status === 'loaded'">
-        <img
-          v-if="type === 'image'"
-          :src="renderSrc"
-          :class="mediaClass"
-          :style="mediaStyle"
-          alt="loaded-media"
-        />
-        <video
-          v-else-if="type === 'video'"
-          :src="renderSrc"
-          :class="mediaClass"
-          :style="mediaStyle"
-          muted
-          preload="auto"
-        ></video>
-
-        <slot></slot>
+        <div :class="mediaClass" :style="mediaStyle">
+          <slot :type="type" :src="renderSrc">
+            <img v-if="type === 'image'" :src="renderSrc" alt="loaded-media" />
+            <video
+              v-else-if="type === 'video'"
+              :src="renderSrc"
+              muted
+              preload="auto"
+            ></video>
+          </slot>
+        </div>
 
         <div
-          v-if="maskPosition === 'inner' && status !== 'loading'"
+          v-if="maskPosition === 'inner' && status !== 'loading' && layer"
           class="mask-layer"
           :class="maskClass"
           :style="maskStyle"
@@ -51,7 +45,7 @@
     </div>
 
     <div
-      v-if="maskPosition === 'outer' && status !== 'loading'"
+      v-if="maskPosition === 'outer' && status !== 'loading' && layer"
       class="mask-layer"
       :class="maskClass"
       :style="maskStyle"
@@ -93,6 +87,10 @@ export default defineComponent({
     mediaStyle: { type: Object, default: () => ({}) },
     maskClass: { type: String, default: '' },
     maskStyle: { type: Object, default: () => ({}) },
+    layer: {
+      type: Boolean,
+      default: false,
+    },
     options: {
       type: Object,
       default: () => ({
@@ -156,10 +154,12 @@ export default defineComponent({
       status.value = 'loading';
 
       try {
+        // 1. 提取到外部：无论是图片还是视频，都先创建一个中断控制器
+        if (typeof window !== 'undefined' && window.AbortController) {
+          abortController = new AbortController();
+        }
+
         if (props.type === 'image') {
-          if (typeof window !== 'undefined' && window.AbortController) {
-            abortController = new AbortController();
-          }
           const fetchOptions = abortController
             ? { signal: abortController.signal }
             : {};
@@ -177,25 +177,69 @@ export default defineComponent({
           status.value = 'loaded';
           stopObserve(); // 加载成功后解绑观察
         } else {
+          // ========= 重点重构的视频解析逻辑 =========
           const tempVideo = document.createElement('video');
           tempVideo.src = props.src;
           tempVideo.preload = 'metadata';
 
           await new Promise((resolve, reject) => {
-            tempVideo.onloadeddata = () => resolve();
-            tempVideo.onerror = (e) => reject(e);
+            // 定义清理事件绑定的辅助函数，防止内存泄漏
+            const cleanupEvents = () => {
+              tempVideo.onloadeddata = null;
+              tempVideo.onerror = null;
+              if (abortController) {
+                abortController.signal.removeEventListener(
+                  'abort',
+                  handleAbort,
+                );
+              }
+            };
+
+            // 定义中断逻辑
+            const handleAbort = () => {
+              cleanupEvents();
+              // 关键黑科技：彻底中断浏览器对视频发起的后台 HTTP 请求
+              tempVideo.removeAttribute('src');
+              tempVideo.load();
+
+              const error = new Error('Aborted');
+              error.name = 'AbortError';
+              reject(error);
+            };
+
+            // 成功解析
+            tempVideo.onloadeddata = () => {
+              cleanupEvents();
+              resolve();
+            };
+
+            // 解析失败
+            tempVideo.onerror = (e) => {
+              cleanupEvents();
+              reject(e);
+            };
+
+            // 监听我们的 abortController 触发的中断信号
+            if (abortController) {
+              abortController.signal.addEventListener('abort', handleAbort);
+            }
           });
 
+          // 如果因为其他原因状态已经不是 loading，直接跳过渲染
           if (status.value !== 'loading') {
-            tempVideo.src = '';
             return;
           }
+
           renderSrc.value = props.src;
           status.value = 'loaded';
-          stopObserve(); // 加载成功后解绑观察
-          tempVideo.src = '';
+          stopObserve();
+
+          // 渲染完成后，也顺手销毁临时视频对象
+          tempVideo.removeAttribute('src');
+          tempVideo.load();
         }
       } catch (error) {
+        // 捕获到中止异常时，优雅地退回占位符状态
         if (error.name === 'AbortError') {
           status.value = 'placeholder';
         } else {

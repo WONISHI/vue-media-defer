@@ -69,33 +69,35 @@ import {
   onMounted,
   onBeforeUnmount,
   nextTick,
-} from "vue-demi";
+} from 'vue-demi';
+
+import { globalObserver } from './observe/index';
 
 export default defineComponent({
-  name: "MediaDefer",
+  name: 'MediaDefer',
   props: {
     src: { type: String, required: true },
     type: {
       type: String,
-      default: "image",
-      validator: (v) => ["image", "video"].includes(v),
+      default: 'image',
+      validator: (v) => ['image', 'video'].includes(v),
     },
     maskPosition: {
       type: String,
-      default: "inner",
-      validator: (v) => ["outer", "inner"].includes(v),
+      default: 'inner',
+      validator: (v) => ['outer', 'inner'].includes(v),
     },
-    containerClass: { type: String, default: "" },
+    containerClass: { type: String, default: '' },
     containerStyle: { type: Object, default: () => ({}) },
-    mediaClass: { type: String, default: "" },
+    mediaClass: { type: String, default: '' },
     mediaStyle: { type: Object, default: () => ({}) },
-    maskClass: { type: String, default: "" },
+    maskClass: { type: String, default: '' },
     maskStyle: { type: Object, default: () => ({}) },
     options: {
       type: Object,
       default: () => ({
         root: null,
-        rootMargin: "100px 0px 100px 0px",
+        rootMargin: '100px 0px 100px 0px',
         threshold: 0,
       }),
     },
@@ -104,19 +106,13 @@ export default defineComponent({
   },
 
   setup(props) {
-    console.log("MediaDefer props:", props);
-    // 2. 使用 ref 定义响应式数据
-    const status = ref("placeholder");
-    const renderSrc = ref("");
-    const wrapperRef = ref(null); // 对应 template 中的 ref="wrapperRef"
+    const status = ref('placeholder');
+    const renderSrc = ref('');
+    const wrapperRef = ref(null);
 
-    // 非响应式变量 (相当于 created 中的 this.xxx)
-    let observer = null;
     let abortController = null;
     let delayTimer = null;
     let objectUrl = null;
-
-    // --- 方法定义 ---
 
     const revokeUrl = () => {
       if (objectUrl) {
@@ -126,10 +122,9 @@ export default defineComponent({
     };
 
     const stopObserve = () => {
-      if (observer) {
-        if (wrapperRef.value) observer.unobserve(wrapperRef.value);
-        observer.disconnect();
-        observer = null;
+      if (wrapperRef.value) {
+        // 使用全局单例解绑
+        globalObserver.unobserve(wrapperRef.value);
       }
     };
 
@@ -138,8 +133,8 @@ export default defineComponent({
         abortController.abort();
         abortController = null;
       }
-      if (status.value === "loading") {
-        status.value = "placeholder";
+      if (status.value === 'loading') {
+        status.value = 'placeholder';
       }
     };
 
@@ -157,12 +152,12 @@ export default defineComponent({
     };
 
     const loadResource = async () => {
-      if (status.value === "loaded" || status.value === "loading") return;
-      status.value = "loading";
+      if (status.value === 'loaded' || status.value === 'loading') return;
+      status.value = 'loading';
 
       try {
-        if (props.type === "image") {
-          if (typeof window !== "undefined" && window.AbortController) {
+        if (props.type === 'image') {
+          if (typeof window !== 'undefined' && window.AbortController) {
             abortController = new AbortController();
           }
           const fetchOptions = abortController
@@ -174,48 +169,48 @@ export default defineComponent({
             throw new Error(`Network error: ${response.status}`);
 
           const blob = await response.blob();
-          if (status.value !== "loading") return;
+          if (status.value !== 'loading') return;
 
           revokeUrl();
           objectUrl = URL.createObjectURL(blob);
           renderSrc.value = objectUrl;
-          status.value = "loaded";
-          stopObserve();
+          status.value = 'loaded';
+          stopObserve(); // 加载成功后解绑观察
         } else {
-          const tempVideo = document.createElement("video");
+          const tempVideo = document.createElement('video');
           tempVideo.src = props.src;
-          tempVideo.preload = "metadata";
+          tempVideo.preload = 'metadata';
 
           await new Promise((resolve, reject) => {
             tempVideo.onloadeddata = () => resolve();
             tempVideo.onerror = (e) => reject(e);
           });
 
-          if (status.value !== "loading") {
-            tempVideo.src = "";
+          if (status.value !== 'loading') {
+            tempVideo.src = '';
             return;
           }
           renderSrc.value = props.src;
-          status.value = "loaded";
-          stopObserve();
-          tempVideo.src = "";
+          status.value = 'loaded';
+          stopObserve(); // 加载成功后解绑观察
+          tempVideo.src = '';
         }
       } catch (error) {
-        if (error.name === "AbortError") {
-          status.value = "placeholder";
+        if (error.name === 'AbortError') {
+          status.value = 'placeholder';
         } else {
-          console.error("[DemandLoader] Error:", error);
-          status.value = "error";
+          console.error('[MediaDefer] Error:', error);
+          status.value = 'error';
         }
       } finally {
         abortController = null;
       }
     };
 
-    const handleIntersect = (entries) => {
-      const entry = entries[0];
+    // 接收全局单例传来的单个 entry
+    const handleIntersect = (entry) => {
       if (entry && entry.isIntersecting) {
-        if (status.value === "loaded" || status.value === "loading") return;
+        if (status.value === 'loaded' || status.value === 'loading') return;
         if (props.delay > 0) {
           delayTimer = setTimeout(() => {
             loadResource();
@@ -228,37 +223,37 @@ export default defineComponent({
           clearTimeout(delayTimer);
           delayTimer = null;
         }
-        if (props.abortable && status.value === "loading") {
+        if (props.abortable && status.value === 'loading') {
           abortRequest();
         }
       }
     };
 
     const initObserver = () => {
-      if (observer) return;
       if (
-        typeof window === "undefined" ||
-        !("IntersectionObserver" in window)
+        typeof window === 'undefined' ||
+        !('IntersectionObserver' in window)
       ) {
         loadResource();
         return;
       }
-      observer = new IntersectionObserver(handleIntersect, props.options);
       if (wrapperRef.value) {
-        observer.observe(wrapperRef.value);
+        // 注册到全局单例进行统一观察
+        globalObserver.observe(
+          wrapperRef.value,
+          handleIntersect,
+          props.options,
+        );
       }
     };
 
     const reset = () => {
       abortRequest();
       revokeUrl();
-      status.value = "placeholder";
-      renderSrc.value = "";
+      status.value = 'placeholder';
+      renderSrc.value = '';
     };
 
-    // --- 生命周期 & Watcher ---
-
-    // 监听 src 变化
     watch(
       () => props.src,
       (newVal, oldVal) => {
@@ -272,24 +267,21 @@ export default defineComponent({
     );
 
     onMounted(() => {
-      if (typeof window !== "undefined") {
+      if (typeof window !== 'undefined') {
         window.requestAnimationFrame(() => {
           initObserver();
         });
       }
     });
 
-    // Vue-demi 让这个钩子同时在 Vue 2 和 Vue 3 生效
     onBeforeUnmount(() => {
       cleanup();
     });
 
-    // 必须返回给模板使用
     return {
       status,
       renderSrc,
       wrapperRef,
-      // 导出给父组件调用的方法(如果需要)或者模板内部方法
       reset,
     };
   },
@@ -300,13 +292,13 @@ export default defineComponent({
 .media-defer-contain {
   overflow: hidden;
   width: 100%;
-  height: 100%;
+  height: 100px;
 }
 .media-defer-wrapper {
   position: relative;
   overflow: hidden;
   width: 100%;
-  height: 100%;
+  height: 100px;
 }
 .slot-box {
   display: flex;
@@ -315,6 +307,9 @@ export default defineComponent({
   width: 100%;
   height: 100%;
   background-color: #f5f7fa;
+}
+:where(.slot-box) {
+  min-height: 100px;
 }
 .mask-layer {
   position: absolute;

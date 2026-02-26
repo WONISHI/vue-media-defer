@@ -10,29 +10,19 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/vue-media-defer.es.js",
       "require": "./dist/vue-media-defer.umd.js"
-    }
+    },
+    "./dist/vue-media-defer.css": "./dist/vue-media-defer.css",
+    "./dist/*": "./dist/*"
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
-    "dev": "vite",
     "build": "vite build",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx --fix",
-    "format": "prettier --write src/",
     "postinstall": "node node_modules/vue-demi/bin/vue-demi-fix.js"
   },
   "dependencies": {
     "vue-demi": "^0.14.0"
   },
   "peerDependencies": {
-    "@vue/composition-api": "^1.0.0-rc.1",
     "vue": "^2.0.0 || >=3.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@vue/composition-api": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@rushstack/eslint-patch": "^1.15.0",

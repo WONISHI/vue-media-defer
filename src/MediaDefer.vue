@@ -104,6 +104,7 @@ export default defineComponent({
   },
 
   setup(props) {
+    console.log("MediaDefer props:", props);
     // 2. 使用 ref 定义响应式数据
     const status = ref("placeholder");
     const renderSrc = ref("");

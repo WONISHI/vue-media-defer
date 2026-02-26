@@ -6,17 +6,8 @@ import path from 'path';
 export default defineConfig({
   plugins: [
     vue(),
-   dts({
-      entryRoot: '.', 
-      outDir: 'dist',
+    dts({
       include: ['src/**/*.vue', 'src/**/*.ts', 'index.ts'],
-      beforeWriteFile: (filePath, content) => {
-        const _content = content.replace(/vue-demi/g, 'vue')
-        return {
-          filePath,
-          content: _content
-        }
-      }
     }),
   ],
   build: {
@@ -26,19 +17,15 @@ export default defineConfig({
       fileName: (format) => `vue-media-defer.${format}.js`,
     },
     rollupOptions: {
-      external: ['vue', 'vue-demi', '@vue/composition-api'], 
+      // 必须把 vue 和 vue-demi 都排除掉
+      external: ['vue', 'vue-demi', '@vue/composition-api'],
       output: {
+        // 在 UMD 模式下，告诉浏览器这些变量去全局找
         globals: {
           vue: 'Vue',
           'vue-demi': 'VueDemi',
-          '@vue/composition-api': 'VueCompositionAPI'
         },
       },
-    },
-  },
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
     },
   },
 });

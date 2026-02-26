@@ -1,6 +1,7 @@
 {
   "name": "vue-media-defer",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "description": "A high-performance Vue 2/3 media lazy-loading component with AbortController support.",
   "type": "module",
   "main": "./dist/vue-media-defer.umd.js",
   "module": "./dist/vue-media-defer.es.js",
@@ -12,34 +13,61 @@
       "require": "./dist/vue-media-defer.umd.js"
     },
     "./dist/vue-media-defer.css": "./dist/vue-media-defer.css",
-    "./dist/*": "./dist/*"
+    "./dist/*": "./dist/*",
+    "./src/*": "./src/*"
   },
+  "files": [
+    "dist",
+    "src",
+    "index.ts"
+  ],
+  "keywords": [
+    "vue",
+    "vue3",
+    "vue2",
+    "lazyload",
+    "media",
+    "image",
+    "video",
+    "intersection-observer"
+  ],
+  "author": "wonishi",
+  "license": "MIT",
   "scripts": {
+    "dev": "vite build --watch",
     "build": "vite build",
-    "postinstall": "node node_modules/vue-demi/bin/vue-demi-fix.js"
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "format": "prettier --write \"src/**/*.{js,ts,vue,css,html}\"",
+    "postinstall": "node node_modules/vue-demi/bin/vue-demi-fix.js",
+    "prepare": "husky install"
   },
   "dependencies": {
     "vue-demi": "^0.14.0"
   },
   "peerDependencies": {
+    "@vue/composition-api": "^1.0.0-rc.1",
     "vue": "^2.0.0 || >=3.0.0"
   },
   "devDependencies": {
-    "@rushstack/eslint-patch": "^1.15.0",
-    "@types/node": "^25.2.1",
-    "@vitejs/plugin-vue": "^6.0.4",
-    "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.6.0",
-    "eslint": "^9.39.2",
-    "eslint-plugin-vue": "^10.7.0",
-    "prettier": "^3.8.1",
-    "typescript": "^5.9.3",
-    "vite": "^7.3.1",
-    "vite-plugin-dts": "^4.5.4",
-    "vue": "^3.5.27",
-    "vue-tsc": "^3.2.4"
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitejs/plugin-vue": "^5.0.3",
+    "eslint": "^8.56.0",
+    "eslint-plugin-vue": "^9.21.1",
+    "husky": "^8.0.0",
+    "lint-staged": "^15.2.2",
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0",
+    "vite-plugin-dts": "^3.7.2"
   },
-  "volta": {
-    "node": "20.20.0"
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,vue}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,md,html}": [
+      "prettier --write"
+    ]
   }
 }

@@ -1,59 +1,46 @@
+// src/observe/index.ts
 export class ObserverManager {
-  private observer: IntersectionObserver | null = null;
-  // 使用 WeakMap 关联 DOM 节点和对应的回调函数，防止内存泄漏
+  // 缓存不同配置的 Observer 实例
+  private observers = new Map<string, IntersectionObserver>();
   private callbackMap = new WeakMap<Element, Function>();
 
-  constructor() {}
-
-  // 懒汉式初始化 Observer，保证全局只实例化一次
-  private initObserver(options: IntersectionObserverInit) {
-    if (this.observer) return;
-
-    this.observer = new IntersectionObserver((entries) => {
-      // 遍历所有发生交叉变化的元素
-      entries.forEach((entry) => {
-        // 从 Map 中找到该元素对应的回调函数并执行
-        const callback = this.callbackMap.get(entry.target);
-        if (callback) {
-          callback(entry); // 直接把当前 entry 传过去
-        }
-      });
-    }, options);
+  // 生成配置的唯一标识
+  private getOptionsKey(options?: IntersectionObserverInit) {
+    if (!options) return 'default';
+    return `${options.rootMargin || '0px'}_${options.threshold || 0}`;
   }
 
-  /**
-   * 添加观察
-   * @param element 需要观察的 DOM 元素
-   * @param callback 交叉时的回调函数
-   * @param options 观察配置（只在第一次初始化时生效）
-   */
   public observe(
     element: Element,
     callback: (entry: IntersectionObserverEntry) => void,
-    options?: IntersectionObserverInit,
+    options?: IntersectionObserverInit
   ) {
-    if (!this.observer) {
-      // 默认提供一个较好的提前加载边距
-      this.initObserver(
-        options || { rootMargin: '100px 0px 100px 0px', threshold: 0 },
-      );
+    const key = this.getOptionsKey(options);
+    let observer = this.observers.get(key);
+
+    // 如果该配置的实例不存在，则创建一个新的
+    if (!observer) {
+      observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          const cb = this.callbackMap.get(entry.target);
+          if (cb) cb(entry);
+        });
+      }, options || { rootMargin: '100px 0px 100px 0px', threshold: 0 });
+      this.observers.set(key, observer);
     }
-    // 将 DOM 和它的专属回调绑定
+
     this.callbackMap.set(element, callback);
-    this.observer?.observe(element);
+    observer.observe(element);
   }
 
-  /**
-   * 取消观察
-   * @param element 需要取消观察的 DOM 元素
-   */
-  public unobserve(element: Element) {
+  public unobserve(element: Element, options?: IntersectionObserverInit) {
     this.callbackMap.delete(element);
-    if (this.observer) {
-      this.observer.unobserve(element);
+    const key = this.getOptionsKey(options);
+    const observer = this.observers.get(key);
+    if (observer) {
+      observer.unobserve(element);
     }
   }
 }
 
-// 导出一个全局单例实例
 export const globalObserver = new ObserverManager();

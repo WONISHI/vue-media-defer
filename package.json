@@ -10,7 +10,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/vue-media-defer.es.js",
       "require": "./dist/vue-media-defer.umd.js"
-    }
+    },
+    "./dist/vue-media-defer.css": "./dist/vue-media-defer.css",
+    "./dist/*": "./dist/*"
   },
   "scripts": {
     "build": "vite build",

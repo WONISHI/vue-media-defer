@@ -6,9 +6,7 @@ import path from 'path';
 export default defineConfig({
   plugins: [
     vue(),
-    dts({
-      include: ['src/**/*.vue', 'src/**/*.ts', 'index.ts'],
-    }),
+    dts({ include: ['src/**/*.vue', 'index.ts'] }),
   ],
   build: {
     lib: {
@@ -17,10 +15,9 @@ export default defineConfig({
       fileName: (format) => `vue-media-defer.${format}.js`,
     },
     rollupOptions: {
-      // 必须把 vue 和 vue-demi 都排除掉
-      external: ['vue', 'vue-demi', '@vue/composition-api'],
+      external: ['vue', 'vue-demi'],
       output: {
-        // 在 UMD 模式下，告诉浏览器这些变量去全局找
+        exports: 'named',
         globals: {
           vue: 'Vue',
           'vue-demi': 'VueDemi',

@@ -1,8 +1,28 @@
 /// <reference types="vite/client" />
 
 declare module '*.vue' {
-  import type { DefineComponent } from 'vue';
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/ban-types
-  const component: DefineComponent<{}, {}, any>;
+  import { DefineComponent } from 'vue-demi';
+
+  interface MediaDeferProps {
+    src: string;
+    type?: 'image' | 'video';
+    maskPosition?: 'inner' | 'outer';
+    containerClass?: string;
+    containerStyle?: Record<string, any>;
+    mediaClass?: string;
+    mediaStyle?: Record<string, any>;
+    maskClass?: string;
+    maskStyle?: Record<string, any>;
+    layer?: boolean;
+    options?: IntersectionObserverInit;
+    delay?: number;
+    abortable?: boolean;
+  }
+
+  interface MediaDeferPublicInstance {
+    reset: () => void;
+  }
+
+  const component: DefineComponent<MediaDeferProps, MediaDeferPublicInstance>;
   export default component;
 }

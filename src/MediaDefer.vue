@@ -8,7 +8,7 @@
     >
       <template v-if="status === 'loaded'">
         <div :class="mediaClass" :style="mediaStyle">
-          <slot :type="type" :src="renderSrc">
+          <slot :type="type" :src="renderSrc" :status="status">
             <img v-if="type === 'image'" :src="renderSrc" alt="loaded-media" />
             <video
               v-else-if="type === 'video'"
@@ -30,15 +30,19 @@
       </template>
 
       <div v-else-if="status === 'loading'" class="slot-box loading-box">
-        <slot name="loading"><span class="default-msg">加载中...</span></slot>
+        <slot name="loading" :status="status">
+          <span class="default-msg">加载中...</span>
+        </slot>
       </div>
 
       <div v-else-if="status === 'error'" class="slot-box error-box">
-        <slot name="error"><span class="default-msg">加载失败</span></slot>
+        <slot name="error" :status="status">
+          <span class="default-msg">加载失败</span>
+        </slot>
       </div>
 
       <div v-else class="slot-box placeholder-box">
-        <slot name="placeholder">
+        <slot name="placeholder" :status="status">
           <div class="default-placeholder-bg"></div>
         </slot>
       </div>
@@ -64,7 +68,6 @@ import {
   onBeforeUnmount,
   nextTick,
 } from 'vue-demi';
-
 import { globalObserver } from './observe/index';
 
 export default defineComponent({
@@ -87,10 +90,7 @@ export default defineComponent({
     mediaStyle: { type: Object, default: () => ({}) },
     maskClass: { type: String, default: '' },
     maskStyle: { type: Object, default: () => ({}) },
-    layer: {
-      type: Boolean,
-      default: false,
-    },
+    layer: { type: Boolean, default: false },
     options: {
       type: Object,
       default: () => ({
@@ -103,7 +103,7 @@ export default defineComponent({
     abortable: { type: Boolean, default: true },
   },
 
-  setup(props) {
+  setup(props, { emit }) {
     const status = ref('placeholder');
     const renderSrc = ref('');
     const wrapperRef = ref(null);
@@ -121,8 +121,7 @@ export default defineComponent({
 
     const stopObserve = () => {
       if (wrapperRef.value) {
-        // 使用全局单例解绑
-        globalObserver.unobserve(wrapperRef.value);
+        globalObserver.unobserve(wrapperRef.value, props.options);
       }
     };
 
@@ -136,25 +135,11 @@ export default defineComponent({
       }
     };
 
-    const cleanup = () => {
-      stopObserve();
-      if (abortController) {
-        abortController.abort();
-        abortController = null;
-      }
-      if (delayTimer) {
-        clearTimeout(delayTimer);
-        delayTimer = null;
-      }
-      revokeUrl();
-    };
-
     const loadResource = async () => {
       if (status.value === 'loaded' || status.value === 'loading') return;
       status.value = 'loading';
 
       try {
-        // 1. 提取到外部：无论是图片还是视频，都先创建一个中断控制器
         if (typeof window !== 'undefined' && window.AbortController) {
           abortController = new AbortController();
         }
@@ -163,10 +148,9 @@ export default defineComponent({
           const fetchOptions = abortController
             ? { signal: abortController.signal }
             : {};
-
           const response = await fetch(props.src, fetchOptions);
           if (!response.ok)
-            throw new Error(`Network error: ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
 
           const blob = await response.blob();
           if (status.value !== 'loading') return;
@@ -175,15 +159,14 @@ export default defineComponent({
           objectUrl = URL.createObjectURL(blob);
           renderSrc.value = objectUrl;
           status.value = 'loaded';
-          stopObserve(); // 加载成功后解绑观察
+          emit('load', { type: 'image', src: props.src });
+          stopObserve();
         } else {
-          // ========= 重点重构的视频解析逻辑 =========
           const tempVideo = document.createElement('video');
           tempVideo.src = props.src;
           tempVideo.preload = 'metadata';
 
           await new Promise((resolve, reject) => {
-            // 定义清理事件绑定的辅助函数，防止内存泄漏
             const cleanupEvents = () => {
               tempVideo.onloadeddata = null;
               tempVideo.onerror = null;
@@ -195,70 +178,55 @@ export default defineComponent({
               }
             };
 
-            // 定义中断逻辑
             const handleAbort = () => {
               cleanupEvents();
-              // 关键黑科技：彻底中断浏览器对视频发起的后台 HTTP 请求
               tempVideo.removeAttribute('src');
               tempVideo.load();
-
-              const error = new Error('Aborted');
-              error.name = 'AbortError';
-              reject(error);
+              reject({ name: 'AbortError' });
             };
 
-            // 成功解析
             tempVideo.onloadeddata = () => {
               cleanupEvents();
               resolve();
             };
 
-            // 解析失败
             tempVideo.onerror = (e) => {
               cleanupEvents();
               reject(e);
             };
 
-            // 监听我们的 abortController 触发的中断信号
             if (abortController) {
               abortController.signal.addEventListener('abort', handleAbort);
             }
           });
 
-          // 如果因为其他原因状态已经不是 loading，直接跳过渲染
-          if (status.value !== 'loading') {
-            return;
-          }
+          if (status.value !== 'loading') return;
 
           renderSrc.value = props.src;
           status.value = 'loaded';
+          emit('load', { type: 'video', src: props.src });
           stopObserve();
-
-          // 渲染完成后，也顺手销毁临时视频对象
           tempVideo.removeAttribute('src');
           tempVideo.load();
         }
       } catch (error) {
-        // 捕获到中止异常时，优雅地退回占位符状态
         if (error.name === 'AbortError') {
           status.value = 'placeholder';
         } else {
           console.error('[MediaDefer] Error:', error);
           status.value = 'error';
+          emit('error', error);
         }
       } finally {
         abortController = null;
       }
     };
 
-    // 接收全局单例传来的单个 entry
     const handleIntersect = (entry) => {
       if (entry && entry.isIntersecting) {
         if (status.value === 'loaded' || status.value === 'loading') return;
         if (props.delay > 0) {
-          delayTimer = setTimeout(() => {
-            loadResource();
-          }, props.delay);
+          delayTimer = setTimeout(() => loadResource(), props.delay);
         } else {
           loadResource();
         }
@@ -282,7 +250,6 @@ export default defineComponent({
         return;
       }
       if (wrapperRef.value) {
-        // 注册到全局单例进行统一观察
         globalObserver.observe(
           wrapperRef.value,
           handleIntersect,
@@ -303,46 +270,39 @@ export default defineComponent({
       (newVal, oldVal) => {
         if (newVal !== oldVal) {
           reset();
-          nextTick(() => {
-            initObserver();
-          });
+          nextTick(() => initObserver());
         }
       },
     );
 
     onMounted(() => {
       if (typeof window !== 'undefined') {
-        window.requestAnimationFrame(() => {
-          initObserver();
-        });
+        window.requestAnimationFrame(() => initObserver());
       }
     });
 
     onBeforeUnmount(() => {
-      cleanup();
+      stopObserve();
+      abortRequest();
+      if (delayTimer) clearTimeout(delayTimer);
+      revokeUrl();
     });
 
-    return {
-      status,
-      renderSrc,
-      wrapperRef,
-      reset,
-    };
+    return { status, renderSrc, wrapperRef, reset };
   },
 });
 </script>
 
 <style scoped>
-.media-defer-contain {
+.media-defer-contain,
+.media-defer-wrapper {
   overflow: hidden;
   width: 100%;
-  height: 100px;
+  height: 100%;
+  min-height: 100px;
 }
 .media-defer-wrapper {
   position: relative;
-  overflow: hidden;
-  width: 100%;
-  height: 100px;
 }
 .slot-box {
   display: flex;
@@ -351,9 +311,6 @@ export default defineComponent({
   width: 100%;
   height: 100%;
   background-color: #f5f7fa;
-}
-:where(.slot-box) {
-  min-height: 100px;
 }
 .mask-layer {
   position: absolute;

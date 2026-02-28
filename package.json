@@ -36,6 +36,8 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
+    "prepublishOnly": "npm run lint && npm run build",
+    "release": "npx standard-version",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "format": "prettier --write \"src/**/*.{js,ts,vue,css,html}\"",
     "postinstall": "node node_modules/vue-demi/bin/vue-demi-fix.js",

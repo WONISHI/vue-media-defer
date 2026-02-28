@@ -1,4 +1,3 @@
-// src/observe/index.ts
 export class ObserverManager {
   // 缓存不同配置的 Observer 实例
   private observers = new Map<string, IntersectionObserver>();
